@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Song Search</title>
+    <style>
+        /* 全体のスタイル */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #121212; /* ダークテーマ */
+            color: #e4e4e4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            text-align: center;
+        }
+
+        h1 {
+            color: #1DB954; /* Spotifyのグリーン */
+            font-size: 36px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        input[type="text"] {
+            padding: 12px 20px;
+            margin: 10px;
+            font-size: 18px;
+            width: 80%;
+            max-width: 480px;
+            border-radius: 50px;
+            border: 2px solid #1DB954;
+            outline: none;
+            background-color: #333;
+            color: #e4e4e4;
+            transition: 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: #1ed760;
+            box-shadow: 0 0 10px rgba(29, 215, 96, 0.5);
+        }
+
+        button {
+            padding: 12px 30px;
+            background-color: #1DB954;
+            color: white;
+            font-size: 18px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: 0.3s ease;
+            margin-top: 15px;
+        }
+
+        button:hover {
+            background-color: #1ed760;
+            transform: scale(1.05);
+        }
+
+        h2 {
+            font-size: 28px;
+            margin-top: 40px;
+            color: #e4e4e4;
+            font-weight: normal;
+        }
+
+        /* 検索結果のカード */
+        .result-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+            padding: 0 10px;
+        }
+
+        .result-item {
+            background-color: #181818; /* ダークカード背景 */
+            border-radius: 15px;
+            padding: 20px;
+            width: 280px;
+            text-align: center;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .result-item:hover {
+            transform: translateY(-12px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .result-item img {
+            border-radius: 10px;
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            margin-bottom: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .result-item img:hover {
+            transform: scale(1.05);
+        }
+
+        .result-item p {
+            margin: 10px 0;
+            font-size: 16px;
+            color: #b3b3b3; /* 文字色を少し薄めに */
+        }
+
+        .result-item a {
+            text-decoration: none;
+            color: #1DB954;
+            font-weight: bold;
+            font-size: 16px;
+            transition: color 0.3s ease;
+        }
+
+        .result-item a:hover {
+            color: #1ed760;
+        }
+
+        /* レスポンシブデザイン */
+        @media (max-width: 600px) {
+            input[type="text"] {
+                width: 90%;
+            }
+
+            button {
+                width: 90%;
+            }
+
+            .result-item {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Spotify Song Search</h1>
+    
+    <input type="text" id="search-query" placeholder="Search for a song...">
+    <button onclick="searchSpotify()">Search</button>
+    
+    <h2>Singles</h2>
+    <div id="singles-results" class="result-container"></div>
+    
+    <h2>Albums</h2>
+    <div id="albums-results" class="result-container"></div>
+
+    <script>
+        // Spotify APIのクライアントIDとクライアントシークレット
+        const CLIENT_ID = '94c549d23a2b4cc6857f6beee668fa89'; // 自分のクライアントIDを入力
+        const CLIENT_SECRET = '46efdc94adb74608acc7ad8a9f541a08'; // 自分のクライアントシークレットを入力
+
+        // アクセストークンを取得する関数
+        async function getAccessToken() {
+            const response = await fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET),
+                },
+                body: new URLSearchParams({
+                    'grant_type': 'client_credentials',
+                }),
+            });
+            
+            const data = await response.json();
+            return data.access_token;
+        }
+
+        // 曲を検索する関数
+        async function searchSpotify() {
+            const query = document.getElementById('search-query').value;
+            if (!query) {
+                alert('Please enter a song title.');
+                return;
+            }
+
+            // Spotifyのアクセストークンを取得
+            const token = await getAccessToken();
+
+            // シングル（トラック）の検索
+            const searchTracksResponse = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            const tracksData = await searchTracksResponse.json();
+
+            // アルバム（アルバム内のトラック）の検索
+            const searchAlbumsResponse = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album&limit=10`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            const albumsData = await searchAlbumsResponse.json();
+
+            // 検索結果を表示
+            displayResults(tracksData.tracks.items, albumsData.albums.items);
+        }
+
+        // 結果をシングルとアルバムに分けて表示
+        function displayResults(tracks, albums) {
+            const singlesContainer = document.getElementById('singles-results');
+            const albumsContainer = document.getElementById('albums-results');
+
+            // 以前の結果をクリア
+            singlesContainer.innerHTML = '';
+            albumsContainer.innerHTML = '';
+
+            if (tracks.length === 0) {
+                singlesContainer.innerHTML = 'No singles found.';
+            } else {
+                tracks.forEach(track => {
+                    const trackElement = document.createElement('div');
+                    trackElement.classList.add('result-item');
+                    trackElement.innerHTML = `
+                        <img src="${track.album.images[0].url}" alt="${track.name}">
+                        <p><strong>${track.name}</strong> by ${track.artists.map(artist => artist.name).join(', ')}</p>
+                        <p><a href="${track.external_urls.spotify}" target="_blank">Listen on Spotify</a></p>
+                    `;
+                    singlesContainer.appendChild(trackElement);
+                });
+            }
+
+            if (albums.length === 0) {
+                albumsContainer.innerHTML = 'No albums found.';
+            } else {
+                albums.forEach(album => {
+                    const albumElement = document.createElement('div');
+                    albumElement.classList.add('result-item');
+                    albumElement.innerHTML = `
+                        <img src="${album.images[0].url}" alt="${album.name}">
+                        <p><strong>${album.name}</strong> by ${album.artists.map(artist => artist.name).join(', ')}</p>
+                        <p><a href="${album.external_urls.spotify}" target="_blank">Listen on Spotify</a></p>
+                    `;
+                    albumsContainer.appendChild(albumElement);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
